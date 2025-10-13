@@ -6,6 +6,10 @@
 // @author       neoblackxt, LaneLau
 // @require      https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js
+// @require      https://cdn.jsdelivr.net/npm/toastify-js
+// @resource     TOASTIFY_CSS https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css
+// @grant        GM_addStyle
+// @grant        GM_getResourceText
 // @match        *://*.beitai.pt/torrents*
 // @match        *://*.pttime.org/torrents*
 // @match        *://*.ptsbao.club/torrents*
@@ -88,7 +92,11 @@ function getParamsFromBonusPage(site) {
     }
 
     if (!argsReady || newT0 !== T0 || newN0 !== N0 || newB0 !== B0 || newL !== L) {
-        alert("魔力值参数已更新")
+        Toastify({
+            text: "魔力值参数已更新",
+            duration: 3000,
+            close: true
+        }).showToast()
         GM_setValue(siteName + ".T0", newT0);
         GM_setValue(siteName + ".N0", newN0);
         GM_setValue(siteName + ".B0", newB0);
@@ -201,7 +209,7 @@ function run() {
     if (!site) {
         site = {
             name: host,
-            host: [host],
+            host: [window.location.host],
             bonusPage: "/mybonus",
             torrentListPage: "/torrents"
         }
@@ -224,7 +232,13 @@ function addDataCol(site) {
     let B0 = GM_getValue(siteName + ".B0");
     let L = GM_getValue(siteName + ".L");
     if (!(T0 && N0 && B0 && L)) {
-        alert("请先访问 " + site.host[0] + site.bonusPage + " 以获取魔力值参数");
+        let bonusPageUrl = window.location.protocol + "//" + site.host[0] + site.bonusPage;
+        Toastify({
+            text: "请先访问 " + bonusPageUrl + " 以获取魔力值参数",
+            destination: bonusPageUrl,
+            duration: 3000,
+            close: true
+        }).showToast();
         return;
     }
 
@@ -305,7 +319,11 @@ function addDataCol(site) {
                     }
                 })
                 if (!i_T || !i_S || !i_N) {
-                    alert('未能找到数据列')
+                    Toastify({
+                        text: "未能找到数据列",
+                        duration: 3000,
+                        close: true
+                    }).showToast();
                     return
                 }
                 $this.children("td:last").before("<td class=\"colhead\" title=\"A值@每GB的A值\">A@A/GB</td>");
@@ -403,3 +421,5 @@ if (window.onurlchange === null) {
     // M-Team 页面局部刷新时重新运行函数
     window.addEventListener('urlchange', (info) => mTeamWaitPageLoadAndRun());
 }
+
+GM_addStyle(GM_getResourceText("TOASTIFY_CSS"));
