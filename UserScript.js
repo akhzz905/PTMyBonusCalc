@@ -331,15 +331,14 @@ function addDataCol(site) {
             $('div.mt-4>table>thead>tr>th:last')
                 .after("<th class=\"border-0 border-b border-solid border-[--mt-line-color] p-2 \" " +
                     "style=\"width: 100px;\" title=\"A值@每GB的A值\"> " +
-                "<div class=\"action\">A@A/GB</div>  </th>");
+                    "<div class=\"action\">A@A/GB</div>  </th>");
         }
         $(seedTableSelector).each(function (row) {
             var $this = $(this);
             var textA = makeA($this, i_T, i_S, i_N)
             // data-from-calc用于判断该元素是否由脚本生成
             let tdTextA = "<td class=\"border-0 border-b border-solid border-[--mt-line-color] p-0 \" " +
-                "align=\"center\" data-from-calc=\"true\">" +
-                + textA + "</td>"
+                "align=\"center\" data-from-calc=\"true\">" + textA + "</td>"
             if ($this.children("td:last").data("fromCalc")) {
                 $this.children("td:last").html(textA)
             } else {
@@ -358,42 +357,31 @@ function addDataCol(site) {
 
 function mTeamWaitPageLoadAndRun() {
     let $ = jQuery
-    let count = 0
-    let tableBlured = false
-    let T0Found = false
-    let seedTableFound = false
-    // 页面局部刷新后重新判断 isMybonusPage
-    isMybonusPage = window.location.toString().indexOf("mybonus") != -1
-    let itv = setInterval(() => {
-
+    let contentObserver = new MutationObserver((mutationsList, observer) => {
+        let T0Found = false;
+        let seedTableFound = false;
+        let isMybonusPage = window.location.toString().indexOf("mybonus") != -1
         if (isMybonusPage) {
-            T0Found = $("li:has(b:contains('T0'))")[1]
+            T0Found = $("li:has(b:contains('T0'))")[1];
         }
-        if (T0Found || seedTableFound || count >= 100) {
-            clearInterval(itv);
-            run()
-        }
-        count++
-    }, 100);
-
-    let count2 = 0
-    let itvTableBlur = setInterval(() => {
-        if ($('div.ant-spin-blur')[0] || count2 >= 50) {
-            tableBlured = true
-            clearInterval(itvTableBlur)
-        }
-        count2++
-    }, 100)
-    let count3 = 0
-    let itvTableUnblur = setInterval(() => {
-        if (tableBlured && !$('div.ant-spin-blur')[0] || count3 >= 100) {
-            seedTableFound = $(seedTableSelector)[1]
-            if (seedTableFound || count3 >= 100) {
-                clearInterval(itvTableUnblur)
+        if (T0Found) {
+            observer.disconnect();
+            run();
+        } else {
+            seedTableFound = $(seedTableSelector)[1];
+            if (seedTableFound) {
+                observer.disconnect();
+                run();
             }
         }
-        count3++
-    }, 100)
+    });
+    let bodyObserver = new MutationObserver((mutationsList, observer) => {
+        if (document.body) {
+            observer.disconnect();
+            contentObserver.observe(document.body, {childList: true, subtree: true});
+        }
+    });
+    bodyObserver.observe(document, {childList: true, subtree: true});
 }
 
 let host = window.location.host.match(/\b[^\.]+\.[^\.]+$/)[0]
