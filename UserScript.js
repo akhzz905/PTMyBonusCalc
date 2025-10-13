@@ -296,7 +296,6 @@ function addDataCol(site) {
             var $this = $(this);
             if (row == 0) {
                 $this.children('td').each(function (col) {
-
                     if ($(this).find('img.time').length) {
                         i_T = col
                     } else if ($(this).find('img.size').length) {
@@ -329,15 +328,19 @@ function addDataCol(site) {
         i_S = colLen - 4
         i_N = colLen - 3
         if (!addFlag) {
-            $('div.mt-4>table>thead>tr>th:last').after("<th class=\"border-0 border-b border-solid border-[--mt-line-color] p-2 \" style=\"width: 100px;\" title=\"A值@每GB的A值\"> " +
+            $('div.mt-4>table>thead>tr>th:last')
+                .after("<th class=\"border-0 border-b border-solid border-[--mt-line-color] p-2 \" " +
+                    "style=\"width: 100px;\" title=\"A值@每GB的A值\"> " +
                 "<div class=\"action\">A@A/GB</div>  </th>");
         }
         $(seedTableSelector).each(function (row) {
             var $this = $(this);
             var textA = makeA($this, i_T, i_S, i_N)
-            let tdTextA = "<td class=\"border-0 border-b border-solid border-[--mt-line-color] p-0 \" align=\"center\">"
+            // data-from-calc用于判断该元素是否由脚本生成
+            let tdTextA = "<td class=\"border-0 border-b border-solid border-[--mt-line-color] p-0 \" " +
+                "align=\"center\" data-from-calc=\"true\">" +
                 + textA + "</td>"
-            if (addFlag) {
+            if ($this.children("td:last").data("fromCalc")) {
                 $this.children("td:last").html(textA)
             } else {
                 $this.children("td:last").after(tdTextA)
