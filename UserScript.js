@@ -51,154 +51,190 @@ const colorsOfAVE = [
     {min: 2, max: Infinity, color: '#ff0000', fontWeight: 900} // 红色
 ]
 
-function run() {
-    var $ = jQuery;
+const siteInfo = [
+    {
+        name: "tjupt",
+        host: ["tjupt.org", "tju.pt"],
+        bonusPage: "/bonus.php?show=description",
+        torrentListPage: "/torrents.php"
+    }, {
+        name: "m-team",
+        host: ["kp.m-team.cc", "zp.m-team.io"],
+        bonusPage: "/mybonus",
+        torrentListPage: "/browse"
+    }
+];
 
-
+function getParamsFromBonusPage(site) {
     let argsReady = true;
-    let T0 = GM_getValue(host + ".T0");
-    let N0 = GM_getValue(host + ".N0");
-    let B0 = GM_getValue(host + ".B0");
-    let L = GM_getValue(host + ".L");
+    let siteName = site.name;
+    let T0 = GM_getValue(siteName + ".T0");
+    let N0 = GM_getValue(siteName + ".N0");
+    let B0 = GM_getValue(siteName + ".B0");
+    let L = GM_getValue(siteName + ".L");
     if (!(T0 && N0 && B0 && L)) {
         argsReady = false
-        if (!isMybonusPage) {
-            alert("未找到魔力值参数,请打开魔力值系统说明获取（/mybonus）");
-        }
     }
-    if (isMybonusPage) {
+    let newT0, newN0, newB0, newL;
+    try {
+        newT0 = parseInt($("li:has(b:contains('T0'))")[1].innerText.split(" = ")[1]);
+        newN0 = parseInt($("li:has(b:contains('N0'))")[1].innerText.split(" = ")[1]);
+        newB0 = parseInt($("li:has(b:contains('B0'))")[1].innerText.split(" = ")[1]);
+        newL = parseInt($("li:has(b:contains('L'))")[1].innerText.split(" = ")[1]);
+        console.log('数据提取成功:', newT0, newN0, newB0, newL);
+    } catch (error) {
+        console.error('数据提取过程中出现错误:', error);
+        return null;
+    }
 
-        try {
-            T0 = parseInt($("li:has(b:contains('T0'))")[1].innerText.split(" = ")[1]);
-            N0 = parseInt($("li:has(b:contains('N0'))")[1].innerText.split(" = ")[1]);
-            B0 = parseInt($("li:has(b:contains('B0'))")[1].innerText.split(" = ")[1]);
-            L = parseInt($("li:has(b:contains('L'))")[1].innerText.split(" = ")[1]);
-            console.log('数据提取成功:', T0, N0, B0, L);
-        } catch (error) {
-            console.error('数据提取过程中出现错误:', error);
-        }
+    if (!argsReady || newT0 !== T0 || newN0 !== N0 || newB0 !== B0 || newL !== L) {
+        alert("魔力值参数已更新")
+        GM_setValue(siteName + ".T0", newT0);
+        GM_setValue(siteName + ".N0", newN0);
+        GM_setValue(siteName + ".B0", newB0);
+        GM_setValue(siteName + ".L", newL);
+    }
+    return {T0: newT0, N0: newN0, B0: newB0, L: newL};
+}
 
-        if (!argsReady) {
-            if (T0 && N0 && B0 && L) {
-                argsReady = true
-                alert("魔力值参数已更新")
-            } else {
-                T0 = N0 = B0 = L = 0;
-                alert("魔力值参数获取失败,请将Tampermonkey的配置模式修改为高级后手动修改存储配置参数，详见说明文档")
-            }
+function drawChart(bonusParams) {
 
-            GM_setValue(host + ".T0", T0);
-            GM_setValue(host + ".N0", N0);
-            GM_setValue(host + ".B0", B0);
-            GM_setValue(host + ".L", L);
+    let B0 = bonusParams.B0;
+    let L = bonusParams.L;
 
-        }
+    function calcB(A) {
+        return B0 * (2 / Math.PI) * Math.atan(A / L)
+    }
 
-        if (!argsReady) {
-            // 参数错误时不用继续计算了，否则会卡死页面
-            return
-        }
+    //从B值反推A值
+    function calcAbyB(B) {
+        return Math.tan(B / B0 / (2 / Math.PI)) * L
+    }
 
-        function calcB(A) {
-            return B0 * (2 / Math.PI) * Math.atan(A / L)
-        }
+    let A = isMTeam ? 0 : parseFloat($("div:contains(' (A = ')")[0].innerText.split(" = ")[1]);
+    let B = isMTeam ? parseFloat($("td:contains('基本獎勵')+td+td")[0].innerText) : calcB(A);
+    // 剔除M-Team的基本奖励中做种数奖励
+    if (isMTeam) {
+        let matches = $("h5:contains('做種每小時將得到如下的魔力值')").next().children().first().text()
+            .match(/(\d+(\.\d+)?)個魔力值.*最多計(\d+)個/);
+        let seedingBonusPerSeed = parseFloat(matches[1]);
+        let seedingBonusLimit = parseInt(matches[3]);
+        let currentSeedingNode = $("span:contains('當前活動')").parent().clone();
+        currentSeedingNode.find('img').replaceWith(function () {
+            return "img";
+        });
+        let currentSeeding = parseInt(currentSeedingNode.text().match(/(\d+)/)[1]);
+        B = B - (currentSeeding > seedingBonusLimit ?
+            seedingBonusPerSeed * seedingBonusLimit : seedingBonusPerSeed * currentSeeding);
+    }
+    // 对于M-Team，B>B0是因为网页获取的基本奖励包括了做种数的奖励，上面代码已经进行排除。
+    // 其他站暂不明确是否有该问题，下面一行的代码暂时保留
+    B = B >= B0 ? B0 * 0.98 : B
+    if (isMTeam) {
+        A = calcAbyB(B);
+    }
 
-        function calcAbyB(B) {
-            //从B值反推A值
-            return Math.tan(B / B0 / (2 / Math.PI)) * L
-        }
+    let spot = [A, B]
 
-        let A = isMTeam ? 0 : parseFloat($("div:contains(' (A = ')")[0].innerText.split(" = ")[1]);
-        let B = isMTeam ? parseFloat($("td:contains('基本獎勵')+td+td")[0].innerText) : calcB(A);
-        // 剔除M-Team的基本奖励中做种数奖励
-        if (isMTeam) {
-            let matches = $("h5:contains('做種每小時將得到如下的魔力值')").next().children().first().text()
-                .match(/(\d+(\.\d+)?)個魔力值.*最多計(\d+)個/);
-            let seedingBonusPerSeed = parseFloat(matches[1]);
-            let seedingBonusLimit = parseInt(matches[3]);
-            let currentSeedingNode = $("span:contains('當前活動')").parent().clone();
-            currentSeedingNode.find('img').replaceWith(function () {
-                return "img";
-            });
-            let currentSeeding = parseInt(currentSeedingNode.text().match(/(\d+)/)[1]);
-            B = B - (currentSeeding > seedingBonusLimit ?
-                seedingBonusPerSeed * seedingBonusLimit : seedingBonusPerSeed * currentSeeding);
-        }
-        // 对于M-Team，B>B0是因为网页获取的基本奖励包括了做种数的奖励，上面代码已经进行排除。
-        // 其他站暂不明确是否有该问题，下面一行的代码暂时保留
-        B = B >= B0 ? B0 * 0.98 : B
-        if (isMTeam) {
-            A = calcAbyB(B);
-        }
+    let data = []
+    for (let i = 0; i < (1.1 * A > 25 * L ? 1.1 * A : 25 * L); i = i + L / 4) {
+        data.push([i, calcB(i)])
+    }
 
-        let spot = [A, B]
+    let insertPos = isMTeam ? $("ul+table") : $("table+h1")
+    insertPos.before('<div id="main" style="width: 600px;height:400px; margin:auto;"></div>')
 
-        let data = []
-        for (let i = 0; i < (1.1 * A > 25 * L ? 1.1 * A : 25 * L); i = i + L / 4) {
-            data.push([i, calcB(i)])
-        }
-
-        let insertPos = isMTeam ? $("ul+table") : $("table+h1")
-        insertPos.before('<div id="main" style="width: 600px;height:400px; margin:auto;"></div>')
-
-        var myChart = echarts.init(document.getElementById('main'));
-        // 指定图表的配置项和数据
-        var option = {
-            title: {
-                text: 'B - A 图',
-                top: 'bottom',
-                left: 'center'
-            },
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'cross'
-                },
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                position: function (pos, params, el, elRect, size) {
-                    var obj = {top: 10};
-                    obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
-                    return obj;
-                },
-                extraCssText: 'width: 170px'
-            },
-            xAxis: {
-                name: 'A',
-            },
-            yAxis: {
-                name: 'B'
-            },
+    var myChart = echarts.init(document.getElementById('main'));
+    // 指定图表的配置项和数据
+    var option = {
+        title: {
+            text: 'B - A 图',
+            top: 'bottom',
+            left: 'center'
+        },
+        tooltip: {
+            trigger: 'axis',
             axisPointer: {
-                label: {
-                    backgroundColor: '#777'
-                }
+                type: 'cross'
             },
-            series: [
-                {
-                    type: 'line',
-                    data: data,
-                    symbol: 'none'
-                },
-                {
-                    type: 'line',
-                    data: [spot],
-                    symbolSize: 6
-                }
-            ]
-        };
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            position: function (pos, params, el, elRect, size) {
+                var obj = {top: 10};
+                obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
+                return obj;
+            },
+            extraCssText: 'width: 170px'
+        },
+        xAxis: {
+            name: 'A',
+        },
+        yAxis: {
+            name: 'B'
+        },
+        axisPointer: {
+            label: {
+                backgroundColor: '#777'
+            }
+        },
+        series: [
+            {
+                type: 'line',
+                data: data,
+                symbol: 'none'
+            },
+            {
+                type: 'line',
+                data: [spot],
+                symbolSize: 6
+            }
+        ]
+    };
 
-        // 使用刚指定的配置项和数据显示图表。
-        myChart.setOption(option);
+    // 使用刚指定的配置项和数据显示图表。
+    myChart.setOption(option);
+}
+
+function run() {
+    var $ = jQuery;
+    let site = siteInfo.find(site => site.host.includes(window.location.host));
+    // 未在预设站点中找到，使用默认配置
+    if (!site) {
+        site = {
+            name: host,
+            host: [host],
+            bonusPage: "/mybonus",
+            torrentListPage: "/torrents"
+        }
     }
+    if (window.location.href.includes(site.bonusPage)) {
+        let bonusParams = getParamsFromBonusPage(site);
+        if (!bonusParams) {
+            return;
+        }
+        drawChart(bonusParams);
+    } else if (window.location.href.includes(site.torrentListPage)) {
+        addDataCol(site)
+    }
+}
 
+function addDataCol(site) {
+    let siteName = site.name;
+    let T0 = GM_getValue(siteName + ".T0");
+    let N0 = GM_getValue(siteName + ".N0");
+    let B0 = GM_getValue(siteName + ".B0");
+    let L = GM_getValue(siteName + ".L");
+    if (!(T0 && N0 && B0 && L)) {
+        alert("请先访问 " + site.host[0] + site.bonusPage + " 以获取魔力值参数");
+        return;
+    }
 
     function calcA(T, S, N) {
-        var c1 = 1 - Math.pow(10, -(T / T0));
+        let c1 = 1 - Math.pow(10, -(T / T0));
         // 当断种时，显示续种后的实际值，因为当前状态值无意义
         N = N ? N : 1;
         // 当前状态值，加入做种后实际值会小于当前值
         // TODO: 改为双行显示为当前值和实际值
-        var c2 = 1 + Math.pow(2, .5) * Math.pow(10, -(N - 1) / (N0 - 1));
+        let c2 = 1 + Math.pow(2, .5) * Math.pow(10, -(N - 1) / (N0 - 1));
         return c1 * S * c2;
     }
 
@@ -253,7 +289,6 @@ function run() {
         });
         return textA;
     }
-
 
     function addDataColGeneral() {
         var i_T, i_S, i_N
@@ -318,8 +353,7 @@ function run() {
     }
 }
 
-
-function MTteamWaitPageLoadAndRun() {
+function mTeamWaitPageLoadAndRun() {
     let $ = jQuery
     let count = 0
     let tableBlured = false
@@ -331,7 +365,6 @@ function MTteamWaitPageLoadAndRun() {
 
         if (isMybonusPage) {
             T0Found = $("li:has(b:contains('T0'))")[1]
-
         }
         if (T0Found || seedTableFound || count >= 100) {
             clearInterval(itv);
@@ -369,14 +402,13 @@ if (window.location.toString().indexOf("tjupt.org") != -1) {
 }
 if (isMTeam) {
     if (isMybonusPage || window.location.toString().indexOf("browse") != -1) {
-        MTteamWaitPageLoadAndRun()
+        mTeamWaitPageLoadAndRun()
     }
 } else {
     run()
 }
 
-var currentUrl = window.location.href;
 if (window.onurlchange === null) {
     // M-Team 页面局部刷新时重新运行函数
-    window.addEventListener('urlchange', (info) => MTteamWaitPageLoadAndRun());
+    window.addEventListener('urlchange', (info) => mTeamWaitPageLoadAndRun());
 }
