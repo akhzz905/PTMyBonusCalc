@@ -232,7 +232,7 @@ function addDataCol(site) {
     let B0 = GM_getValue(siteName + ".B0");
     let L = GM_getValue(siteName + ".L");
     if (!(T0 && N0 && B0 && L)) {
-        let bonusPageUrl = window.location.protocol + "//" + site.host[0] + site.bonusPage;
+        let bonusPageUrl = window.location.origin + site.bonusPage;
         Toastify({
             text: "请先访问 " + bonusPageUrl + " 以获取魔力值参数",
             destination: bonusPageUrl,
