@@ -291,14 +291,17 @@ function addDataCol(site) {
         var N = parseInt(number);
         var A = calcA(T, S, N).toFixed(2);
         var ave = (A / S).toFixed(2);
+        return {a: A, ave: ave};
+    }
 
-        var textA = '<span>' + A + '@' + ave + '</span>';
+    function makeTextA(a, ave) {
+        let textA = '<span>' + a + '@' + ave + '</span>';
         colorsOfAVE.forEach(color => {
             if (ave >= color.min && ave < color.max && (color.color != null || color.fontWeight != null)) {
                 textA = '<span style="'
                     + (color.color == null ? '' : 'color:' + color.color + ";")
                     + (color.fontWeight == null ? '' : 'font-weight:' + color.fontWeight + ";")
-                    + '">' + A + '@' + ave + '</span>';
+                    + '">' + a + '@' + ave + '</span>';
             }
         });
         return textA;
@@ -326,10 +329,16 @@ function addDataCol(site) {
                     }).showToast();
                     return
                 }
-                $this.children("td:last").before("<td class=\"colhead\" title=\"A值@每GB的A值\">A@A/GB</td>");
+                $this.children("td:last").before("<td class=\"colhead\" style=\"cursor: pointer;\" " +
+                    "id=\"calcTHead\" title=\"A值@每GB的A值\">A@A/GB</td>");
+                $('#calcTHead').on('click', function (event) {
+                    handleSortTable(event);
+                });
             } else {
-                var textA = makeA($this, i_T, i_S, i_N)
-                $this.children("td:last").before("<td class=\"rowfollow\">" + textA + "</td>");
+                let {a, ave} = makeA($this, i_T, i_S, i_N)
+                let textA = makeTextA(a, ave)
+                $this.children("td:last").before("<td class=\"rowfollow\" data-calc-a=\"" + a + "\" " +
+                    "data-calc-ave=\"" + ave + "\">" + textA + "</td>");
             }
         })
     }
@@ -348,15 +357,20 @@ function addDataCol(site) {
         if (!addFlag) {
             $('div.mt-4>table>thead>tr>th:last')
                 .after("<th class=\"border-0 border-b border-solid border-[--mt-line-color] p-2 \" " +
-                    "style=\"width: 100px;\" title=\"A值@每GB的A值\"> " +
+                    "style=\"width: 100px;cursor: pointer;\" title=\"A值@每GB的A值\" id=\"calcTHead\"> " +
                     "<div class=\"action\">A@A/GB</div>  </th>");
+            $('#calcTHead').on('click', function (event) {
+                handleSortTable(event);
+            });
         }
         $(seedTableSelector).each(function (row) {
             var $this = $(this);
-            var textA = makeA($this, i_T, i_S, i_N)
+            let {a, ave} = makeA($this, i_T, i_S, i_N)
+            let textA = makeTextA(a, ave)
             // data-from-calc用于判断该元素是否由脚本生成
             let tdTextA = "<td class=\"border-0 border-b border-solid border-[--mt-line-color] p-0 \" " +
-                "align=\"center\" data-from-calc=\"true\">" + textA + "</td>"
+                "align=\"center\" data-from-calc=\"true\" data-calc-a=\"" + a + "\" data-calc-ave=\"" + ave + "\" >"
+                + textA + "</td>"
             if ($this.children("td:last").data("fromCalc")) {
                 $this.children("td:last").html(textA)
             } else {
@@ -364,6 +378,32 @@ function addDataCol(site) {
                 //<span class=\"block mx-[-5px]\">"+textA+"</span>
             }
         })
+    }
+
+    // 用来判断升降序，true为升序，false为降序
+    let isAscending = false;
+
+    function handleSortTable(event) {
+        const $header = $('#calcTHead');
+        const $tbody = $header.closest('table').children('tbody');
+        const colIndex = $header.index();
+        let rows;
+        if (isMTeam) {
+            rows = $tbody.children('tr').toArray();
+        } else {
+            rows = $tbody.children('tr')
+                .not(':first-child')        // 排除表头行
+                .toArray();
+        }
+
+        rows.sort((rowA, rowB) => {
+            const valA = parseFloat($(rowA).children().eq(colIndex).data('calcAve')) || 0;
+            const valB = parseFloat($(rowB).children().eq(colIndex).data('calcAve')) || 0;
+            let comparison = valA - valB;
+            return isAscending ? comparison : comparison * -1;
+        });
+        rows.forEach(row => $tbody.append(row));
+        isAscending = !isAscending;
     }
 
     if (isMTeam) {
