@@ -207,10 +207,16 @@ function run() {
     let site = siteInfo.find(site => site.host.includes(window.location.host));
     // 未在预设站点中找到，使用默认配置
     if (!site) {
+        const mybonusLinks = $("a:contains('使用')");
+        let targetHref = mybonusLinks.length > 0 ? mybonusLinks.eq(0).prop("href") : null;
+        if (targetHref) {
+            let pathParts = targetHref.split("/");
+            targetHref = pathParts.length > 0 ? "/" + pathParts[pathParts.length-1] : null;
+        }
         site = {
             name: host,
             host: [window.location.host],
-            bonusPage: "/mybonus",
+            bonusPage: targetHref || "/mybonus.php",
             torrentListPage: "/torrents"
         }
     }
