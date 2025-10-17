@@ -211,7 +211,7 @@ function run() {
         let targetHref = mybonusLinks.length > 0 ? mybonusLinks.eq(0).prop("href") : null;
         if (targetHref) {
             let pathParts = targetHref.split("/");
-            targetHref = pathParts.length > 0 ? "/" + pathParts[pathParts.length-1] : null;
+            targetHref = pathParts.length > 0 ? "/" + pathParts[pathParts.length - 1] : null;
         }
         site = {
             name: host,
@@ -347,13 +347,14 @@ function addDataCol(site) {
                     "data-calc-ave=\"" + ave + "\">" + textA + "</td>");
             }
         })
+        sortTable();
     }
 
     function addDataColMTeam() {
         let i_T, i_S, i_N, addFlag = false
 
         let colLen = $('div.mt-4>table>thead>tr>th').length
-        if ($('div.mt-4>table>thead>tr>th:last').text().indexOf('A@A/GB') != -1) {
+        if ($('div.mt-4>table>thead>tr>th:last').attr('id') === "calcTHead") {
             addFlag = true
             colLen -= 1
         }
@@ -364,7 +365,7 @@ function addDataCol(site) {
             $('div.mt-4>table>thead>tr>th:last')
                 .after("<th class=\"border-0 border-b border-solid border-[--mt-line-color] p-2 \" " +
                     "style=\"width: 100px;cursor: pointer;\" title=\"A值@每GB的A值\" id=\"calcTHead\"> " +
-                    "<div class=\"action\">A@A/GB</div>  </th>");
+                    "A@A/GB </th>");
             $('#calcTHead').on('click', function (event) {
                 handleSortTable(event);
             });
@@ -383,13 +384,22 @@ function addDataCol(site) {
                 $this.children("td:last").after(tdTextA)
                 //<span class=\"block mx-[-5px]\">"+textA+"</span>
             }
-        })
+        });
+        sortTable();
     }
 
-    // 用来判断升降序，true为升序，false为降序
-    let isAscending = false;
+    // 排序计数器，记录点击次数，0表示按原顺序，1表示按ave降序，2表示按ave升序，3表示按a降序，4表示按a升序
+    let sortCounter = parseInt(sessionStorage.getItem("ptMyBonusCalcSortCounter")) || 0;
+    let needStore = true;
 
     function handleSortTable(event) {
+        sortCounter = (sortCounter + 1) % 5;
+        // 保存排序计数器，使在页面刷新后仍能保持排序状态
+        sessionStorage.setItem("ptMyBonusCalcSortCounter", sortCounter);
+        sortTable();
+    }
+
+    function sortTable() {
         const $header = $('#calcTHead');
         const $tbody = $header.closest('table').children('tbody');
         const colIndex = $header.index();
@@ -401,15 +411,34 @@ function addDataCol(site) {
                 .not(':first-child')        // 排除表头行
                 .toArray();
         }
-
+        // 保存原始顺序
+        if (needStore) {
+            rows.forEach((row, index) => {
+                $(row).data('originalIndex', index);
+            });
+            needStore = false;
+        }
         rows.sort((rowA, rowB) => {
-            const valA = parseFloat($(rowA).children().eq(colIndex).data('calcAve')) || 0;
-            const valB = parseFloat($(rowB).children().eq(colIndex).data('calcAve')) || 0;
-            let comparison = valA - valB;
-            return isAscending ? comparison : comparison * -1;
+            if (sortCounter === 0) {
+                $header.html('A@A/GB');
+                return $(rowA).data('originalIndex') - $(rowB).data('originalIndex');
+            } else if (sortCounter === 1 || sortCounter === 2) {
+                $header.html(sortCounter === 1 ? 'A@A/GB↓' : 'A@A/GB↑');
+                const aveOfA = parseFloat($(rowA).children().eq(colIndex).data('calcAve')) || 0;
+                const aveOfB = parseFloat($(rowB).children().eq(colIndex).data('calcAve')) || 0;
+                let comparison = aveOfA - aveOfB;
+                return sortCounter === 1 ? comparison * -1 : comparison;
+            } else if (sortCounter === 3 || sortCounter === 4) {
+                $header.html(sortCounter === 3 ? 'A↓@A/GB' : 'A↑@A/GB');
+                const aOfA = parseFloat($(rowA).children().eq(colIndex).data('calcA')) || 0;
+                const aOfB = parseFloat($(rowB).children().eq(colIndex).data('calcA')) || 0;
+                let comparison = aOfA - aOfB;
+                return sortCounter === 3 ? comparison * -1 : comparison;
+            } else {
+                sortCounter = 0;
+            }
         });
         rows.forEach(row => $tbody.append(row));
-        isAscending = !isAscending;
     }
 
     if (isMTeam) {
