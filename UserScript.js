@@ -69,7 +69,9 @@ const siteInfo = [
     }
 ];
 
-function getParamsFromBonusPage(site) {
+let site;
+
+function getParamsFromBonusPage() {
     let argsReady = true;
     let siteName = site.name;
     let T0 = GM_getValue(siteName + ".T0");
@@ -141,6 +143,8 @@ function drawChart(bonusParams) {
     if (isMTeam) {
         A = calcAbyB(B);
     }
+    GM_setValue(site.name + ".A", A);
+    GM_setValue(site.name + ".Time", Date.now());
 
     let spot = [A, B]
 
@@ -204,7 +208,7 @@ function drawChart(bonusParams) {
 
 function run() {
     var $ = jQuery;
-    let site = siteInfo.find(site => site.host.includes(window.location.host));
+    site = siteInfo.find(site => site.host.includes(window.location.host));
     // 未在预设站点中找到，使用默认配置
     if (!site) {
         const mybonusLinks = $("a:contains('使用')");
@@ -225,13 +229,13 @@ function run() {
         if (!bonusParams) {
             return;
         }
-        drawChart(bonusParams);
+        drawChart(bonusParams, site);
     } else if (window.location.href.includes(site.torrentListPage)) {
         addDataCol(site)
     }
 }
 
-function addDataCol(site) {
+function addDataCol() {
     let siteName = site.name;
     let T0 = GM_getValue(siteName + ".T0");
     let N0 = GM_getValue(siteName + ".N0");
@@ -295,9 +299,9 @@ function addDataCol(site) {
         var number = $this.children('td:eq(' + i_N + ')').text().trim().replace(/,/g, ''); // 获取人数，删除多余符号
         //console.log(number);
         var N = parseInt(number);
-        var A = calcA(T, S, N).toFixed(2);
+        var A = calcA(T, S, N);
         var ave = (A / S).toFixed(2);
-        return {a: A, ave: ave};
+        return {a: A, ave: ave, s: S};
     }
 
     function makeTextAve(ave) {
@@ -318,6 +322,32 @@ function addDataCol(site) {
             }
         }
         return `<span>${ave}</span>`;
+    }
+
+    let nowA = GM_getValue(siteName + ".A");
+    let aHeadText = nowA ? "时魔" : "A";
+    let aTitle = nowA ? "当前做种状态下每小时可以获得的魔力值" : "A值";
+    let aveHeadText = nowA ? "时魔/GB" : "A/GB";
+    let aveTitle = nowA ? "当前做种状态下每GB每小时可以获得的魔力值" : "每GB的A值";
+    let paramStoreTime = GM_getValue(siteName + ".Time");
+    if (paramStoreTime && Date.now() - paramStoreTime > 24 * 3600 * 1000) {
+        let bonusPageUrl = window.location.origin + site.bonusPage;
+        Toastify({
+            text: "时魔数据获取时间已超过24小时，建议访问" + bonusPageUrl + "获取最新时魔数据",
+            destination: bonusPageUrl,
+            duration: 3000,
+            close: true
+        }).showToast();
+    }
+
+    function calcB(A) {
+        return B0 * (2 / Math.PI) * Math.atan(A / L)
+    }
+
+    function calcDeltaB(a) {
+        let nowB = calcB(nowA);
+        let newB = calcB(a + nowA);
+        return newB - nowB;
     }
 
     function addDataColGeneral() {
@@ -343,17 +373,25 @@ function addDataCol(site) {
                     return
                 }
                 $this.children("td:last").before('<td class="colhead" style="cursor: pointer;" ' +
-                    'id="calcTHeadA" title="A值">A</td>', '<td class="colhead" style="cursor: pointer;" ' +
-                    'id="calcTHeadAve" title="每GB的A值">A/GB</td>');
+                    'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
+                    '<td class="colhead" style="cursor: pointer;" ' +
+                    'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
                 $('#calcTHeadA,#calcTHeadAve').on('click', function () {
                     handleSortTable(this.id);
                 });
             } else {
-                let {a, ave} = makeA($this, i_T, i_S, i_N);
+                let {a, ave, s} = makeA($this, i_T, i_S, i_N);
                 let textAve = makeTextAve(ave);
-                $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + a +
-                    '">' + a + '</td>', '<td class="rowfollow" data-calc-ave="' + ave +
-                    '">' + textAve + '</td>');
+                if (nowA) {
+                    let deltaB = calcDeltaB(a);
+                    $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + deltaB + '">' +
+                        deltaB.toFixed(2) + '</td>', '<td class="rowfollow" data-calc-ave="' +
+                        deltaB / s + '">' + (deltaB / s).toFixed(2) + '</td>');
+                } else {
+                    $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + a +
+                        '">' + a.toFixed(2) + '</td>', '<td class="rowfollow" data-calc-ave="' + ave +
+                        '">' + textAve + '</td>');
+                }
             }
         })
         sortTable();
@@ -373,24 +411,36 @@ function addDataCol(site) {
         if (!addFlag) {
             $('div.mt-4>table>thead>tr>th:last')
                 .after('<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
-                    'style="width: 65px;cursor: pointer;" title="A值" id="calcTHeadA"> A </th>',
+                    'style="width: 65px;cursor: pointer;" title="' + aTitle + '" id="calcTHeadA"> ' + aHeadText + ' </th>',
                     '<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
-                    'style="width: 65px;cursor: pointer;" title="每GB的A值" id="calcTHeadAve"> A/GB </th>');
+                    'style="width: 65px;cursor: pointer;" title="' + aveTitle + '" id="calcTHeadAve"> ' + aveHeadText + ' </th>');
             $('#calcTHeadA,#calcTHeadAve').on('click', function () {
                 handleSortTable(this.id);
             });
         }
         $(seedTableSelector).each(function (row) {
             const $this = $(this);
-            let {a, ave} = makeA($this, i_T, i_S, i_N)
-            // data-from-calc用于判断该元素是否由脚本生成
-            let tdTextA = "<td class=\"border-0 border-b border-solid border-[--mt-line-color] p-0 \" " +
-                "align=\"center\" data-from-calc=\"true\" data-calc-a=\"" + a + "\" data-calc-ave=\"" + ave + "\" >"
-                + a + "</td>"
-            let textAve = makeTextAve(ave);
-            let tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
-                'align="center" data-from-calc="true" data-calc-a="' + a + '" data-calc-ave="' + ave + '" >'
-                + textAve + '</td>';
+            let {a, ave, s} = makeA($this, i_T, i_S, i_N)
+            let tdTextA, tdTextAve;
+            if (nowA) {
+                let deltaB = calcDeltaB(a);
+                tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
+                    'align="center" data-from-calc="true" data-calc-a="' + deltaB.toFixed(2) + '">'
+                    + deltaB.toFixed(2) + '</td>';
+                let textAve = (deltaB / s).toFixed(2);
+                tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
+                    'align="center" data-from-calc="true" data-calc-ave="' + (deltaB / s) + '">'
+                    + textAve + '</td>';
+            } else {
+                // data-from-calc用于判断该元素是否由脚本生成
+                tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
+                    'align="center" data-from-calc="true" data-calc-a="' + a + '">'
+                    + a + '</td>'
+                let textAve = makeTextAve(ave);
+                tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
+                    'align="center" data-from-calc="true" data-calc-ave="' + ave + '">'
+                    + textAve + '</td>';
+            }
             if ($this.children("td:last").data("fromCalc")) {
                 $this.children(":nth-last-child(2)").html(a);
                 $this.children("td:last").html(textAve);
@@ -445,19 +495,19 @@ function addDataCol(site) {
         }
         rows.sort((rowA, rowB) => {
             if ((sortBy === 1 && aSortCounter === 0) || (sortBy === 2 && aveSortCounter === 0)) {
-                $aHeader.html('A');
-                $aveHeader.html('A/GB');
+                $aHeader.html(aHeadText);
+                $aveHeader.html(aveHeadText);
                 return $(rowA).data('originalIndex') - $(rowB).data('originalIndex');
             } else if (sortBy === 1 && aSortCounter !== 0) {
-                $aHeader.html(aSortCounter === 1 ? 'A↓' : 'A↑');
-                $aveHeader.html("A/GB");
+                $aHeader.html(aSortCounter === 1 ? aHeadText + '↓' : aHeadText + '↑');
+                $aveHeader.html(aveHeadText);
                 const aOfA = parseFloat($(rowA).children().eq($aHeader.index()).data('calcA')) || 0;
                 const aOfB = parseFloat($(rowB).children().eq($aHeader.index()).data('calcA')) || 0;
                 let comparison = aOfA - aOfB;
                 return aSortCounter === 1 ? comparison * -1 : comparison;
             } else if (sortBy === 2 && aveSortCounter !== 0) {
-                $aveHeader.html(aveSortCounter === 1 ? 'A/GB↓' : 'A/GB↑');
-                $aHeader.html("A");
+                $aveHeader.html(aveSortCounter === 1 ? aveHeadText + '↓' : aveHeadText + '↑');
+                $aHeader.html(aHeadText);
                 const aveOfA = parseFloat($(rowA).children().eq($aveHeader.index()).data('calcAve')) || 0;
                 const aveOfB = parseFloat($(rowB).children().eq($aveHeader.index()).data('calcAve')) || 0;
                 let comparison = aveOfA - aveOfB;
