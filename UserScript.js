@@ -479,6 +479,7 @@ function mTeamWaitPageLoadAndRun() {
 
 let host = window.location.host.match(/\b[^\.]+\.[^\.]+$/)[0]
 let isMTeam = window.location.toString().indexOf("m-team") != -1
+let mTeamUrl
 let seedTableSelector = isMTeam ? 'div.ant-spin-container:not(.ant-spin-blur)>div.mt-4>table>tbody>tr' : '.torrents:last-of-type>tbody>tr'
 let isMybonusPage = window.location.toString().indexOf("mybonus") != -1
 if (window.location.toString().indexOf("tjupt.org") != -1) {
@@ -486,6 +487,7 @@ if (window.location.toString().indexOf("tjupt.org") != -1) {
 }
 if (isMTeam) {
     if (isMybonusPage || window.location.toString().indexOf("browse") != -1) {
+        mTeamUrl = window.location.toString()
         mTeamWaitPageLoadAndRun()
     }
 } else {
@@ -494,7 +496,12 @@ if (isMTeam) {
 
 if (window.onurlchange === null) {
     // M-Team 页面局部刷新时重新运行函数
-    window.addEventListener('urlchange', (info) => mTeamWaitPageLoadAndRun());
+    window.addEventListener('urlchange', (info) => {
+		if (info.url !== mTeamUrl) {
+            mTeamUrl = window.location.toString()
+            mTeamWaitPageLoadAndRun();
+        }
+    });
 }
 
 GM_addStyle(GM_getResourceText("TOASTIFY_CSS"));
