@@ -300,17 +300,24 @@ function addDataCol(site) {
         return {a: A, ave: ave};
     }
 
-    function makeTextA(a, ave) {
-        let textA = '<span>' + a + '@' + ave + '</span>';
-        colorsOfAVE.forEach(color => {
-            if (ave >= color.min && ave < color.max && (color.color != null || color.fontWeight != null)) {
-                textA = '<span style="'
-                    + (color.color == null ? '' : 'color:' + color.color + ";")
-                    + (color.fontWeight == null ? '' : 'font-weight:' + color.fontWeight + ";")
-                    + '">' + a + '@' + ave + '</span>';
+    function makeTextAve(ave) {
+        for (const config of colorsOfAVE) {
+            if (ave >= config.min && ave < config.max) {
+                if (config.color || config.fontWeight) {
+                    const styles = [];
+                    if (config.color) {
+                        styles.push(`color: ${config.color};`);
+                    }
+                    if (config.fontWeight) {
+                        styles.push(`font-weight: ${config.fontWeight};`);
+                    }
+                    const styleString = styles.join('');
+                    return `<span style="${styleString}">${ave}</span>`;
+                }
+                return `<span>${ave}</span>`;
             }
-        });
-        return textA;
+        }
+        return `<span>${ave}</span>`;
     }
 
     function addDataColGeneral() {
@@ -335,16 +342,18 @@ function addDataCol(site) {
                     }).showToast();
                     return
                 }
-                $this.children("td:last").before("<td class=\"colhead\" style=\"cursor: pointer;\" " +
-                    "id=\"calcTHead\" title=\"A值@每GB的A值\">A@A/GB</td>");
-                $('#calcTHead').on('click', function (event) {
-                    handleSortTable(event);
+                $this.children("td:last").before('<td class="colhead" style="cursor: pointer;" ' +
+                    'id="calcTHeadA" title="A值">A</td>', '<td class="colhead" style="cursor: pointer;" ' +
+                    'id="calcTHeadAve" title="每GB的A值">A/GB</td>');
+                $('#calcTHeadA,#calcTHeadAve').on('click', function () {
+                    handleSortTable(this.id);
                 });
             } else {
-                let {a, ave} = makeA($this, i_T, i_S, i_N)
-                let textA = makeTextA(a, ave)
-                $this.children("td:last").before("<td class=\"rowfollow\" data-calc-a=\"" + a + "\" " +
-                    "data-calc-ave=\"" + ave + "\">" + textA + "</td>");
+                let {a, ave} = makeA($this, i_T, i_S, i_N);
+                let textAve = makeTextAve(ave);
+                $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + a +
+                    '">' + a + '</td>', '<td class="rowfollow" data-calc-ave="' + ave +
+                    '">' + textAve + '</td>');
             }
         })
         sortTable();
@@ -354,55 +363,71 @@ function addDataCol(site) {
         let i_T, i_S, i_N, addFlag = false
 
         let colLen = $('div.mt-4>table>thead>tr>th').length
-        if ($('div.mt-4>table>thead>tr>th:last').attr('id') === "calcTHead") {
+        if ($('div.mt-4>table>thead>tr>th:last').attr('id') === "calcTHeadAve") {
             addFlag = true
-            colLen -= 1
+            colLen -= 2
         }
         i_T = colLen - 5
         i_S = colLen - 4
         i_N = colLen - 3
         if (!addFlag) {
             $('div.mt-4>table>thead>tr>th:last')
-                .after("<th class=\"border-0 border-b border-solid border-[--mt-line-color] p-2 \" " +
-                    "style=\"width: 100px;cursor: pointer;\" title=\"A值@每GB的A值\" id=\"calcTHead\"> " +
-                    "A@A/GB </th>");
-            $('#calcTHead').on('click', function (event) {
-                handleSortTable(event);
+                .after('<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
+                    'style="width: 65px;cursor: pointer;" title="A值" id="calcTHeadA"> A </th>',
+                    '<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
+                    'style="width: 65px;cursor: pointer;" title="每GB的A值" id="calcTHeadAve"> A/GB </th>');
+            $('#calcTHeadA,#calcTHeadAve').on('click', function () {
+                handleSortTable(this.id);
             });
         }
         $(seedTableSelector).each(function (row) {
-            var $this = $(this);
+            const $this = $(this);
             let {a, ave} = makeA($this, i_T, i_S, i_N)
-            let textA = makeTextA(a, ave)
             // data-from-calc用于判断该元素是否由脚本生成
             let tdTextA = "<td class=\"border-0 border-b border-solid border-[--mt-line-color] p-0 \" " +
                 "align=\"center\" data-from-calc=\"true\" data-calc-a=\"" + a + "\" data-calc-ave=\"" + ave + "\" >"
-                + textA + "</td>"
+                + a + "</td>"
+            let textAve = makeTextAve(ave);
+            let tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
+                'align="center" data-from-calc="true" data-calc-a="' + a + '" data-calc-ave="' + ave + '" >'
+                + textAve + '</td>';
             if ($this.children("td:last").data("fromCalc")) {
-                $this.children("td:last").html(textA)
+                $this.children(":nth-last-child(2)").html(a);
+                $this.children("td:last").html(textAve);
             } else {
-                $this.children("td:last").after(tdTextA)
-                //<span class=\"block mx-[-5px]\">"+textA+"</span>
+                $this.children("td:last").after(tdTextA, tdTextAve);
             }
         });
         sortTable();
     }
 
-    // 排序计数器，记录点击次数，0表示按原顺序，1表示按ave降序，2表示按ave升序，3表示按a降序，4表示按a升序
-    let sortCounter = parseInt(sessionStorage.getItem("ptMyBonusCalcSortCounter")) || 0;
     let needStore = true;
+    // 0表示未排序，1表示按a降序，2表示按a升序
+    let aSortCounter = parseInt(sessionStorage.getItem("ptMyBonusCalcASortCounter")) || 0;
+    // 0表示未排序，1表示按ave降序，2表示按ave升序
+    let aveSortCounter = parseInt(sessionStorage.getItem("ptMyBonusCalcAveSortCounter")) || 0;
+    // 1表示按a排序，2表示按ave排序
+    let sortBy = parseInt(sessionStorage.getItem("ptMyBonusCalcSortBy")) || 0;
 
-    function handleSortTable(event) {
-        sortCounter = (sortCounter + 1) % 5;
-        // 保存排序计数器，使在页面刷新后仍能保持排序状态
-        sessionStorage.setItem("ptMyBonusCalcSortCounter", sortCounter);
+    function handleSortTable(id) {
+        if (id === "calcTHeadA") {
+            aSortCounter = (aSortCounter + 1) % 3;
+            sessionStorage.setItem("ptMyBonusCalcASortCounter", aSortCounter);
+            sortBy = 1;
+            sessionStorage.setItem("ptMyBonusCalcSortBy", sortBy);
+        } else if (id === "calcTHeadAve") {
+            aveSortCounter = (aveSortCounter + 1) % 3;
+            sessionStorage.setItem("ptMyBonusCalcAveSortCounter", aveSortCounter);
+            sortBy = 2;
+            sessionStorage.setItem("ptMyBonusCalcSortBy", sortBy);
+        }
         sortTable();
     }
 
     function sortTable() {
-        const $header = $('#calcTHead');
-        const $tbody = $header.closest('table').children('tbody');
-        const colIndex = $header.index();
+        const $aHeader = $('#calcTHeadA');
+        const $aveHeader = $('#calcTHeadAve');
+        const $tbody = $aHeader.closest('table').children('tbody');
         let rows;
         if (isMTeam) {
             rows = $tbody.children('tr').toArray();
@@ -419,23 +444,24 @@ function addDataCol(site) {
             needStore = false;
         }
         rows.sort((rowA, rowB) => {
-            if (sortCounter === 0) {
-                $header.html('A@A/GB');
+            if ((sortBy === 1 && aSortCounter === 0) || (sortBy === 2 && aveSortCounter === 0)) {
+                $aHeader.html('A');
+                $aveHeader.html('A/GB');
                 return $(rowA).data('originalIndex') - $(rowB).data('originalIndex');
-            } else if (sortCounter === 1 || sortCounter === 2) {
-                $header.html(sortCounter === 1 ? 'A@A/GB↓' : 'A@A/GB↑');
-                const aveOfA = parseFloat($(rowA).children().eq(colIndex).data('calcAve')) || 0;
-                const aveOfB = parseFloat($(rowB).children().eq(colIndex).data('calcAve')) || 0;
-                let comparison = aveOfA - aveOfB;
-                return sortCounter === 1 ? comparison * -1 : comparison;
-            } else if (sortCounter === 3 || sortCounter === 4) {
-                $header.html(sortCounter === 3 ? 'A↓@A/GB' : 'A↑@A/GB');
-                const aOfA = parseFloat($(rowA).children().eq(colIndex).data('calcA')) || 0;
-                const aOfB = parseFloat($(rowB).children().eq(colIndex).data('calcA')) || 0;
+            } else if (sortBy === 1 && aSortCounter !== 0) {
+                $aHeader.html(aSortCounter === 1 ? 'A↓' : 'A↑');
+                $aveHeader.html("A/GB");
+                const aOfA = parseFloat($(rowA).children().eq($aHeader.index()).data('calcA')) || 0;
+                const aOfB = parseFloat($(rowB).children().eq($aHeader.index()).data('calcA')) || 0;
                 let comparison = aOfA - aOfB;
-                return sortCounter === 3 ? comparison * -1 : comparison;
-            } else {
-                sortCounter = 0;
+                return aSortCounter === 1 ? comparison * -1 : comparison;
+            } else if (sortBy === 2 && aveSortCounter !== 0) {
+                $aveHeader.html(aveSortCounter === 1 ? 'A/GB↓' : 'A/GB↑');
+                $aHeader.html("A");
+                const aveOfA = parseFloat($(rowA).children().eq($aveHeader.index()).data('calcAve')) || 0;
+                const aveOfB = parseFloat($(rowB).children().eq($aveHeader.index()).data('calcAve')) || 0;
+                let comparison = aveOfA - aveOfB;
+                return aveSortCounter === 1 ? comparison * -1 : comparison;
             }
         });
         rows.forEach(row => $tbody.append(row));
@@ -497,7 +523,7 @@ if (isMTeam) {
 if (window.onurlchange === null) {
     // M-Team 页面局部刷新时重新运行函数
     window.addEventListener('urlchange', (info) => {
-		if (info.url !== mTeamUrl) {
+        if (info.url !== mTeamUrl) {
             mTeamUrl = window.location.toString()
             mTeamWaitPageLoadAndRun();
         }
