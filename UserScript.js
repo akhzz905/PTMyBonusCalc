@@ -7,6 +7,7 @@
 // @require      https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js
 // @require      https://cdn.jsdelivr.net/npm/toastify-js
+// @require      https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js
 // @resource     TOASTIFY_CSS https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css
 // @grant        GM_addStyle
 // @grant        GM_getResourceText
@@ -144,7 +145,6 @@ function drawChart(bonusParams) {
         A = calcAbyB(B);
     }
     GM_setValue(site.name + ".A", A);
-    GM_setValue(site.name + ".Time", Date.now());
 
     let spot = [A, B]
 
@@ -235,7 +235,96 @@ function run() {
     }
 }
 
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) {
+            return decodeURIComponent(c.substring(nameEQ.length, c.length));
+        }
+    }
+    return null;
+}
+
+async function getParamsFromFetch() {
+
+    if (getCookie("calcBonusA")) {
+        return;
+    }
+
+    let newT0, newN0, newB0, newL, a;
+
+    if (isMTeam) {
+        const secret = "HLkPcWmycL57mfJt";
+        const timestamp = Date.now();
+        const stringToSign = `POST&/api/tracker/mybonus&${timestamp}`;
+        let sgin = CryptoJS.HmacSHA1(stringToSign, secret).toString(CryptoJS.enc.Base64);
+        let formData = new FormData();
+        formData.append("_timestamp", timestamp);
+        formData.append("_sgin", sgin);
+        let auth = localStorage.getItem("auth");
+        let response = await fetch("https://api.m-team.cc/api/tracker/mybonus", {
+            headers: {
+                "authorization": auth
+            },
+            method: "POST",
+            body: formData
+        });
+        let data = await response.json();
+        if (data.code != 0 || !data.data) {
+            return;
+        }
+        let bonusData = data.data;
+        newT0 = bonusData.formulaParams.tzeroBonus;
+        newN0 = bonusData.formulaParams.nzeroBonus;
+        newB0 = bonusData.formulaParams.bzeroBonus;
+        newL = bonusData.formulaParams.lbonus;
+        a = bonusData.formulaParams.a;
+    } else {
+        let response = await fetch(window.location.origin + site.bonusPage, {
+            method: 'GET'
+        });
+        let html = await response.text();
+        let $html = $(html);
+        newT0 = parseFloat($html.find("li:has(b:contains('T0'))")[1].innerText.split(" = ")[1]);
+        newN0 = parseFloat($html.find("li:has(b:contains('N0'))")[1].innerText.split(" = ")[1]);
+        newB0 = parseFloat($html.find("li:has(b:contains('B0'))")[1].innerText.split(" = ")[1]);
+        newL = parseFloat($html.find("li:has(b:contains('L'))")[1].innerText.split(" = ")[1]);
+        a = parseFloat($html.find("div:contains(' (A = ')")[0].innerText.split(" = ")[1]);
+    }
+
+    // 浏览器关闭A值就失效
+    document.cookie = "calcBonusA=" + a + "; path=/";
+    Toastify({
+        text: "时魔参数已更新",
+        duration: 3000,
+        close: true
+    }).showToast();
+    addDataCol();
+    let T0 = GM_getValue(site.name + ".T0");
+    let N0 = GM_getValue(site.name + ".N0");
+    let B0 = GM_getValue(site.name + ".B0");
+    let L = GM_getValue(site.name + ".L");
+    if (T0 === newT0 && N0 === newN0 && B0 === newB0 && L === newL) {
+        return;
+    }
+    GM_setValue(site.name + ".T0", newT0);
+    GM_setValue(site.name + ".N0", newN0);
+    GM_setValue(site.name + ".B0", newB0);
+    GM_setValue(site.name + ".L", newL);
+    Toastify({
+        text: "魔力值参数已更新",
+        duration: 3000,
+        close: true
+    }).showToast();
+}
+
 function addDataCol() {
+
+    getParamsFromFetch();
+
     let siteName = site.name;
     let T0 = GM_getValue(siteName + ".T0");
     let N0 = GM_getValue(siteName + ".N0");
@@ -324,21 +413,11 @@ function addDataCol() {
         return `<span>${ave}</span>`;
     }
 
-    let nowA = GM_getValue(siteName + ".A");
+    let nowA = parseFloat(getCookie("calcBonusA"));
     let aHeadText = nowA ? "时魔" : "A";
     let aTitle = nowA ? "当前做种状态下每小时可以获得的魔力值" : "A值";
     let aveHeadText = nowA ? "时魔/GB" : "A/GB";
     let aveTitle = nowA ? "当前做种状态下每GB每小时可以获得的魔力值" : "每GB的A值";
-    let paramStoreTime = GM_getValue(siteName + ".Time");
-    if (paramStoreTime && Date.now() - paramStoreTime > 24 * 3600 * 1000) {
-        let bonusPageUrl = window.location.origin + site.bonusPage;
-        Toastify({
-            text: "时魔数据获取时间已超过24小时，建议访问" + bonusPageUrl + "获取最新时魔数据",
-            destination: bonusPageUrl,
-            duration: 3000,
-            close: true
-        }).showToast();
-    }
 
     function calcB(A) {
         return B0 * (2 / Math.PI) * Math.atan(A / L)
@@ -352,6 +431,9 @@ function addDataCol() {
 
     function addDataColGeneral() {
         var i_T, i_S, i_N
+        let calTHeadA = $("#calcTHeadA");
+        let calTHeadAve = $("#calcTHeadAve");
+        let addFlag = calTHeadA.length !== 0 && calTHeadA.length !== 0;
         $(seedTableSelector).each(function (row) {
             var $this = $(this);
             if (row == 0) {
@@ -372,21 +454,31 @@ function addDataCol() {
                     }).showToast();
                     return
                 }
-                $this.children("td:last").before('<td class="colhead" style="cursor: pointer;" ' +
-                    'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
-                    '<td class="colhead" style="cursor: pointer;" ' +
-                    'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
-                $('#calcTHeadA,#calcTHeadAve').on('click', function () {
-                    handleSortTable(this.id);
-                });
+                if (addFlag) {
+                    calTHeadA.html(aHeadText);
+                    calTHeadAve.html(aHeadText);
+                } else {
+                    $this.children("td:last").before('<td class="colhead" style="cursor: pointer;" ' +
+                        'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
+                        '<td class="colhead" style="cursor: pointer;" ' +
+                        'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
+                    $('#calcTHeadA,#calcTHeadAve').on('click', function () {
+                        handleSortTable(this.id);
+                    });
+                }
             } else {
                 let {a, ave, s} = makeA($this, i_T, i_S, i_N);
                 let textAve = makeTextAve(ave);
                 if (nowA) {
                     let deltaB = calcDeltaB(a);
-                    $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + deltaB + '">' +
-                        deltaB.toFixed(2) + '</td>', '<td class="rowfollow" data-calc-ave="' +
-                        deltaB / s + '">' + (deltaB / s).toFixed(2) + '</td>');
+                    if (addFlag) {
+                        $this.children(":nth-last-child(2)").html(deltaB.toFixed(2));
+                        $this.children(":nth-last-child(3)").html((deltaB / s).toFixed(2));
+                    } else {
+                        $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + deltaB + '">' +
+                            deltaB.toFixed(2) + '</td>', '<td class="rowfollow" data-calc-ave="' +
+                            deltaB / s + '">' + (deltaB / s).toFixed(2) + '</td>');
+                    }
                 } else {
                     $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + a +
                         '">' + a.toFixed(2) + '</td>', '<td class="rowfollow" data-calc-ave="' + ave +
