@@ -425,7 +425,7 @@ function addDataCol() {
             if (nowA) {
                 let deltaB = calcDeltaB(a);
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
-                    'align="center" data-from-calc="true" data-calc-a="' + deltaB.toFixed(2) + '">'
+                    'align="center" data-from-calc="true" data-calc-a="' + deltaB + '">'
                     + deltaB.toFixed(2) + '</td>';
                 let textAve = (deltaB / s).toFixed(2);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
@@ -435,7 +435,7 @@ function addDataCol() {
                 // data-from-calc用于判断该元素是否由脚本生成
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-a="' + a + '">'
-                    + a + '</td>'
+                    + a.toFixed(2) + '</td>'
                 let textAve = makeTextAve(ave);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-ave="' + ave + '">'
