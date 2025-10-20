@@ -225,13 +225,13 @@ function run() {
         }
     }
     if (window.location.href.includes(site.bonusPage)) {
-        let bonusParams = getParamsFromBonusPage(site);
+        let bonusParams = getParamsFromBonusPage();
         if (!bonusParams) {
             return;
         }
-        drawChart(bonusParams, site);
+        drawChart(bonusParams);
     } else if (window.location.href.includes(site.torrentListPage)) {
-        addDataCol(site)
+        addDataCol()
     }
 }
 
@@ -249,10 +249,6 @@ function getCookie(name) {
 }
 
 async function getParamsFromFetch() {
-
-    if (getCookie("calcBonusA")) {
-        return;
-    }
 
     let newT0, newN0, newB0, newL, a;
 
@@ -302,12 +298,12 @@ async function getParamsFromFetch() {
         duration: 3000,
         close: true
     }).showToast();
-    addDataCol();
     let T0 = GM_getValue(site.name + ".T0");
     let N0 = GM_getValue(site.name + ".N0");
     let B0 = GM_getValue(site.name + ".B0");
     let L = GM_getValue(site.name + ".L");
     if (T0 === newT0 && N0 === newN0 && B0 === newB0 && L === newL) {
+        addDataCol();
         return;
     }
     GM_setValue(site.name + ".T0", newT0);
@@ -319,25 +315,22 @@ async function getParamsFromFetch() {
         duration: 3000,
         close: true
     }).showToast();
+    addDataCol();
 }
 
 function addDataCol() {
-
-    getParamsFromFetch();
 
     let siteName = site.name;
     let T0 = GM_getValue(siteName + ".T0");
     let N0 = GM_getValue(siteName + ".N0");
     let B0 = GM_getValue(siteName + ".B0");
     let L = GM_getValue(siteName + ".L");
+
+    if (!getCookie("calcBonusA") || !(T0 && N0 && B0 && L)) {
+        getParamsFromFetch();
+    }
+
     if (!(T0 && N0 && B0 && L)) {
-        let bonusPageUrl = window.location.origin + site.bonusPage;
-        Toastify({
-            text: "请先访问 " + bonusPageUrl + " 以获取魔力值参数",
-            destination: bonusPageUrl,
-            duration: 3000,
-            close: true
-        }).showToast();
         return;
     }
 
@@ -462,9 +455,10 @@ function addDataCol() {
                         'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
                         '<td class="colhead" style="cursor: pointer;" ' +
                         'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
-                    $('#calcTHeadA,#calcTHeadAve').on('click', function () {
-                        handleSortTable(this.id);
-                    });
+                    $('#calcTHeadA,#calcTHeadAve').off('click')
+                        .on('click', function () {
+                            handleSortTable(this.id);
+                        });
                 }
             } else {
                 let {a, ave, s} = makeA($this, i_T, i_S, i_N);
@@ -492,6 +486,8 @@ function addDataCol() {
     function addDataColMTeam() {
         let i_T, i_S, i_N, addFlag = false
 
+        console.log(nowA);
+
         let colLen = $('div.mt-4>table>thead>tr>th').length
         if ($('div.mt-4>table>thead>tr>th:last').attr('id') === "calcTHeadAve") {
             addFlag = true
@@ -505,21 +501,22 @@ function addDataCol() {
                 .after('<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
                     'style="width: 65px;cursor: pointer;" title="' + aTitle + '" id="calcTHeadA"> ' + aHeadText + ' </th>',
                     '<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
-                    'style="width: 65px;cursor: pointer;" title="' + aveTitle + '" id="calcTHeadAve"> ' + aveHeadText + ' </th>');
-            $('#calcTHeadA,#calcTHeadAve').on('click', function () {
-                handleSortTable(this.id);
-            });
+                    'style="width: 80px;cursor: pointer;" title="' + aveTitle + '" id="calcTHeadAve"> ' + aveHeadText + ' </th>');
+            $('#calcTHeadA,#calcTHeadAve').off('click')
+                .on('click', function () {
+                    handleSortTable(this.id);
+                });
         }
         $(seedTableSelector).each(function (row) {
             const $this = $(this);
             let {a, ave, s} = makeA($this, i_T, i_S, i_N)
-            let tdTextA, tdTextAve;
+            let tdTextA, tdTextAve, textAve;
             if (nowA) {
                 let deltaB = calcDeltaB(a);
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-a="' + deltaB + '">'
                     + deltaB.toFixed(2) + '</td>';
-                let textAve = (deltaB / s).toFixed(2);
+                textAve = (deltaB / s).toFixed(2);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-ave="' + (deltaB / s) + '">'
                     + textAve + '</td>';
@@ -528,13 +525,13 @@ function addDataCol() {
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-a="' + a + '">'
                     + a.toFixed(2) + '</td>'
-                let textAve = makeTextAve(ave);
+                textAve = makeTextAve(ave);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-ave="' + ave + '">'
                     + textAve + '</td>';
             }
             if ($this.children("td:last").data("fromCalc")) {
-                $this.children(":nth-last-child(2)").html(a);
+                $this.children(":nth-last-child(2)").html(a.toFixed(2));
                 $this.children("td:last").html(textAve);
             } else {
                 $this.children("td:last").after(tdTextA, tdTextAve);
@@ -650,9 +647,6 @@ let isMTeam = window.location.toString().indexOf("m-team") != -1
 let mTeamUrl
 let seedTableSelector = isMTeam ? 'div.ant-spin-container:not(.ant-spin-blur)>div.mt-4>table>tbody>tr' : '.torrents:last-of-type>tbody>tr'
 let isMybonusPage = window.location.toString().indexOf("mybonus") != -1
-if (window.location.toString().indexOf("tjupt.org") != -1) {
-    isMybonusPage = window.location.toString().indexOf("bonus.php") != -1
-}
 if (isMTeam) {
     if (isMybonusPage || window.location.toString().indexOf("browse") != -1) {
         mTeamUrl = window.location.toString()
