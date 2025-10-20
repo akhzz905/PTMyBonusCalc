@@ -423,12 +423,12 @@ function addDataCol() {
     }
 
     function addDataColGeneral() {
-        var i_T, i_S, i_N
+        let i_T, i_S, i_N;
         let calTHeadA = $("#calcTHeadA");
         let calTHeadAve = $("#calcTHeadAve");
-        let addFlag = calTHeadA.length !== 0 && calTHeadA.length !== 0;
+        let addFlag = calTHeadA.length !== 0 && calTHeadAve.length !== 0;
         $(seedTableSelector).each(function (row) {
-            var $this = $(this);
+            const $this = $(this);
             if (row == 0) {
                 $this.children('td').each(function (col) {
                     if ($(this).find('img.time').length) {
@@ -447,19 +447,19 @@ function addDataCol() {
                     }).showToast();
                     return
                 }
-                if (addFlag) {
-                    calTHeadA.html(aHeadText);
-                    calTHeadAve.html(aHeadText);
-                } else {
+                if (!addFlag) {
                     $this.children("td:last").before('<td class="colhead" style="cursor: pointer;" ' +
                         'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
                         '<td class="colhead" style="cursor: pointer;" ' +
                         'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
-                    $('#calcTHeadA,#calcTHeadAve').off('click')
-                        .on('click', function () {
-                            handleSortTable(this.id);
-                        });
+                }else{
+                    $("#calcTHeadA").attr('title', aTitle);
+                    $("#calcTHeadAve").attr('title', aveTitle);
                 }
+                $('#calcTHeadA,#calcTHeadAve').off('click')
+                    .on('click', function () {
+                        handleSortTable(this.id);
+                    });
             } else {
                 let {a, ave, s} = makeA($this, i_T, i_S, i_N);
                 let textAve = makeTextAve(ave);
@@ -486,8 +486,6 @@ function addDataCol() {
     function addDataColMTeam() {
         let i_T, i_S, i_N, addFlag = false
 
-        console.log(nowA);
-
         let colLen = $('div.mt-4>table>thead>tr>th').length
         if ($('div.mt-4>table>thead>tr>th:last').attr('id') === "calcTHeadAve") {
             addFlag = true
@@ -502,11 +500,14 @@ function addDataCol() {
                     'style="width: 65px;cursor: pointer;" title="' + aTitle + '" id="calcTHeadA"> ' + aHeadText + ' </th>',
                     '<th class="border-0 border-b border-solid border-[--mt-line-color] p-2 " ' +
                     'style="width: 80px;cursor: pointer;" title="' + aveTitle + '" id="calcTHeadAve"> ' + aveHeadText + ' </th>');
-            $('#calcTHeadA,#calcTHeadAve').off('click')
-                .on('click', function () {
-                    handleSortTable(this.id);
-                });
+        } else {
+            $("#calcTHeadA").attr('title', aTitle);
+            $("#calcTHeadAve").attr('title', aveTitle);
         }
+        $('#calcTHeadA,#calcTHeadAve').off('click')
+            .on('click', function () {
+                handleSortTable(this.id);
+            });
         $(seedTableSelector).each(function (row) {
             const $this = $(this);
             let {a, ave, s} = makeA($this, i_T, i_S, i_N)
