@@ -452,7 +452,7 @@ function addDataCol() {
                         'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
                         '<td class="colhead" style="cursor: pointer;" ' +
                         'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
-                }else{
+                } else {
                     $("#calcTHeadA").attr('title', aTitle);
                     $("#calcTHeadAve").attr('title', aveTitle);
                 }
@@ -567,6 +567,10 @@ function addDataCol() {
     function sortTable() {
         const $aHeader = $('#calcTHeadA');
         const $aveHeader = $('#calcTHeadAve');
+        if (sortBy === 0) {
+            $aHeader.html(aHeadText);
+            $aveHeader.html(aveHeadText);
+        }
         const $tbody = $aHeader.closest('table').children('tbody');
         let rows;
         if (isMTeam) {
