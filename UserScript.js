@@ -469,9 +469,10 @@ function addDataCol() {
                         $this.children(":nth-last-child(2)").html(deltaB.toFixed(2));
                         $this.children(":nth-last-child(3)").html((deltaB / s).toFixed(2));
                     } else {
-                        $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + deltaB + '">' +
-                            deltaB.toFixed(2) + '</td>', '<td class="rowfollow" data-calc-ave="' +
-                            deltaB / s + '">' + (deltaB / s).toFixed(2) + '</td>');
+                        $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + deltaB + '" ' +
+                            'title="A: ' + a.toFixed(2) + '">' + deltaB.toFixed(2) + '</td>',
+                            '<td class="rowfollow" data-calc-ave="' + deltaB / s + '" title="A/GB: ' + ave + '">'
+                            + (deltaB / s).toFixed(2) + '</td>');
                     }
                 } else {
                     $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + a +
@@ -515,12 +516,12 @@ function addDataCol() {
             if (nowA) {
                 let deltaB = calcDeltaB(a);
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
-                    'align="center" data-from-calc="true" data-calc-a="' + deltaB + '">'
-                    + deltaB.toFixed(2) + '</td>';
+                    'align="center" data-from-calc="true" data-calc-a="' + deltaB + '" title="A: ' +
+                    a.toFixed(2) + '">' + deltaB.toFixed(2) + '</td>';
                 textAve = (deltaB / s).toFixed(2);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
-                    'align="center" data-from-calc="true" data-calc-ave="' + (deltaB / s) + '">'
-                    + textAve + '</td>';
+                    'align="center" data-from-calc="true" data-calc-ave="' + (deltaB / s) + '" title="A/GB: ' +
+                    ave + '">' + textAve + '</td>';
             } else {
                 // data-from-calc用于判断该元素是否由脚本生成
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
