@@ -466,8 +466,8 @@ function addDataCol() {
                 if (nowA) {
                     let deltaB = calcDeltaB(a);
                     if (addFlag) {
-                        $this.children(":nth-last-child(2)").html(deltaB.toFixed(2));
-                        $this.children(":nth-last-child(3)").html((deltaB / s).toFixed(2));
+                        $this.children(":nth-last-child(3)").html(deltaB.toFixed(2));
+                        $this.children(":nth-last-child(2)").html((deltaB / s).toFixed(2));
                     } else {
                         $this.children("td:last").before('<td class="rowfollow" data-calc-a="' + deltaB + '" ' +
                             'title="A: ' + a.toFixed(2) + '">' + deltaB.toFixed(2) + '</td>',
