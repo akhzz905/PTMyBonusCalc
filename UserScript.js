@@ -383,6 +383,10 @@ function addDataCol() {
         var N = parseInt(number);
         var A = calcA(T, S, N);
         var ave = (A / S).toFixed(2);
+        // tjupt的“魔力值详情”页面可以看到当前做种种子的A值，比对发现带“保种”标签种子的A值是公式计算A值的5倍
+        if (site.name === "tjupt" && $this.find(".tag-keepseed")) {
+            A = 5 * A;
+        }
         return {a: A, ave: ave, s: S};
     }
 
