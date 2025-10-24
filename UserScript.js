@@ -517,12 +517,13 @@ function addDataCol() {
         $(seedTableSelector).each(function (row) {
             const $this = $(this);
             let {a, ave, s} = makeA($this, i_T, i_S, i_N)
-            let tdTextA, tdTextAve, textAve;
+            let tdTextA, tdTextAve, textAve, textA;
             if (nowA) {
                 let deltaB = calcDeltaB(a);
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-a="' + deltaB + '" title="A: ' +
                     a.toFixed(2) + '">' + deltaB.toFixed(2) + '</td>';
+                textA = deltaB.toFixed(2);
                 textAve = (deltaB / s).toFixed(2);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-ave="' + (deltaB / s) + '" title="A/GB: ' +
@@ -532,14 +533,17 @@ function addDataCol() {
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-a="' + a + '">'
                     + a.toFixed(2) + '</td>'
+                textA = a.toFixed(2);
                 textAve = makeTextAve(ave);
                 tdTextAve = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-ave="' + ave + '">'
                     + textAve + '</td>';
             }
             if ($this.children("td:last").data("fromCalc")) {
-                $this.children(":nth-last-child(2)").html(a.toFixed(2));
+                $this.children(":nth-last-child(2)").html(textA);
+                $this.children(":nth-last-child(2)").attr("title", a.toFixed(2));
                 $this.children("td:last").html(textAve);
+                $this.children("td:last").attr("title", ave);
             } else {
                 $this.children("td:last").after(tdTextA, tdTextAve);
             }
@@ -627,18 +631,14 @@ function addDataCol() {
 function mTeamWaitPageLoadAndRun() {
     let $ = jQuery
     let contentObserver = new MutationObserver((mutationsList, observer) => {
-        let T0Found = false;
-        let seedTableFound = false;
         let isMybonusPage = window.location.toString().indexOf("mybonus") != -1
         if (isMybonusPage) {
-            T0Found = $("li:has(b:contains('T0'))")[1];
-        }
-        if (T0Found) {
-            observer.disconnect();
-            run();
+            if ($("li:has(b:contains('T0'))")[1]) {
+                observer.disconnect();
+                run();
+            }
         } else {
-            seedTableFound = $(seedTableSelector)[1];
-            if (seedTableFound) {
+            if ($(seedTableSelector)[1]) {
                 observer.disconnect();
                 run();
             }
