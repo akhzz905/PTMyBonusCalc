@@ -170,12 +170,9 @@ function drawChart(bonusParams) {
                 type: 'cross'
             },
             backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            position: function (pos, params, el, elRect, size) {
-                var obj = {top: 10};
-                obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
-                return obj;
-            },
-            extraCssText: 'width: 170px'
+            valueFormatter: function (value) {
+                return value.toFixed(2);
+            }
         },
         xAxis: {
             name: 'A',
@@ -192,7 +189,7 @@ function drawChart(bonusParams) {
             {
                 type: 'line',
                 data: data,
-                symbol: 'none'
+                showSymbol: false
             },
             {
                 type: 'line',
