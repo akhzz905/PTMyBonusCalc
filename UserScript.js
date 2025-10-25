@@ -381,7 +381,7 @@ function addDataCol() {
         var A = calcA(T, S, N);
         var ave = (A / S).toFixed(2);
         // tjupt的“魔力值详情”页面可以看到当前做种种子的A值，比对发现带“保种”标签种子的A值是公式计算A值的5倍
-        if (site.name === "tjupt" && $this.find(".tag-keepseed")) {
+        if (site.name === "tjupt" && $this.find(".tag-keepseed").length !== 0) {
             A = 5 * A;
         }
         return {a: A, ave: ave, s: S};
@@ -408,10 +408,11 @@ function addDataCol() {
     }
 
     let nowA = parseFloat(getCookie("calcBonusA"));
-    let aHeadText = nowA ? "时魔" : "A";
-    let aTitle = nowA ? "当前做种状态下每小时可以获得的魔力值" : "A值";
-    let aveHeadText = nowA ? "时魔/GB" : "A/GB";
-    let aveTitle = nowA ? "当前做种状态下每GB每小时可以获得的魔力值" : "每GB的A值";
+    let hasNowA = !isNaN(nowA);
+    let aHeadText = hasNowA ? "时魔" : "A";
+    let aTitle = hasNowA ? "当前做种状态下每小时可以获得的魔力值" : "A值";
+    let aveHeadText = hasNowA ? "时魔/GB" : "A/GB";
+    let aveTitle = hasNowA ? "当前做种状态下每GB每小时可以获得的魔力值" : "每GB的A值";
 
     function calcB(A) {
         return B0 * (2 / Math.PI) * Math.atan(A / L)
@@ -464,7 +465,7 @@ function addDataCol() {
             } else {
                 let {a, ave, s} = makeA($this, i_T, i_S, i_N);
                 let textAve = makeTextAve(ave);
-                if (nowA) {
+                if (hasNowA) {
                     let deltaB = calcDeltaB(a);
                     if (addFlag) {
                         const colA = $this.children(":nth-last-child(3)");
@@ -518,7 +519,7 @@ function addDataCol() {
             const $this = $(this);
             let {a, ave, s} = makeA($this, i_T, i_S, i_N)
             let tdTextA, tdTextAve, textAve, textA;
-            if (nowA) {
+            if (hasNowA) {
                 let deltaB = calcDeltaB(a);
                 tdTextA = '<td class="border-0 border-b border-solid border-[--mt-line-color] p-0 " ' +
                     'align="center" data-from-calc="true" data-calc-a="' + deltaB + '" title="A: ' +
