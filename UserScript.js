@@ -232,20 +232,31 @@ function run() {
     }
 }
 
-function getCookie(name) {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) === 0) {
-            return decodeURIComponent(c.substring(nameEQ.length, c.length));
-        }
+function updateBonusParams() {
+    let activeSeed = GM_getValue(site.name + ".activeSeed", -1);
+    let nowActiveSeed = getActiveSeed();
+    let paramStoreTime = GM_getValue(site.name + ".paramStoreTime", -1);
+    if (activeSeed === nowActiveSeed && Date.now() - paramStoreTime < 1000 * 60 * 60 * 24) {
+        return;
     }
-    return null;
+    getParamsFromFetch();
 }
 
-async function getParamsFromFetch() {
+function getActiveSeed() {
+    if (isMTeam) {
+        return parseInt($("div.ant-space-item:nth-child(8) > span:nth-child(1) > span:nth-child(3)")[0].innerText);
+    } else {
+        let infoTdHtml = $("span:contains('活动种子'), span:contains('当前活动')").parent().html();
+        let match = infoTdHtml.match(/(?:活动种子|当前活动)[:：]<\/span>\s*<img.*>(\d+)\s*<img.*>(\d+)/);
+        if (match && match.length > 2) {
+            return parseInt(match[1]);
+        } else {
+            return -1;
+        }
+    }
+}
+
+function getParamsFromFetch() {
 
     let newT0, newN0, newB0, newL, a;
 
@@ -258,74 +269,80 @@ async function getParamsFromFetch() {
         formData.append("_timestamp", timestamp);
         formData.append("_sgin", sgin);
         let auth = localStorage.getItem("auth");
-        let response = await fetch("https://api.m-team.cc/api/tracker/mybonus", {
+        fetch("https://api.m-team.cc/api/tracker/mybonus", {
             headers: {
                 "authorization": auth
             },
             method: "POST",
             body: formData
+        }).then(response => response.json()).then(data => {
+            if (data.code !== "0" || !data.data) {
+                return;
+            }
+            let bonusData = data.data;
+            newT0 = parseFloat(bonusData.formulaParams.tzeroBonus);
+            newN0 = parseFloat(bonusData.formulaParams.nzeroBonus);
+            newB0 = parseFloat(bonusData.formulaParams.bzeroBonus);
+            newL = parseFloat(bonusData.formulaParams.lbonus);
+            a = parseFloat(bonusData.formulaParams.a);
+            storageData();
         });
-        let data = await response.json();
-        if (data.code != 0 || !data.data) {
-            return;
-        }
-        let bonusData = data.data;
-        newT0 = bonusData.formulaParams.tzeroBonus;
-        newN0 = bonusData.formulaParams.nzeroBonus;
-        newB0 = bonusData.formulaParams.bzeroBonus;
-        newL = bonusData.formulaParams.lbonus;
-        a = bonusData.formulaParams.a;
     } else {
-        let response = await fetch(window.location.origin + site.bonusPage, {
+        fetch(window.location.origin + site.bonusPage, {
             method: 'GET'
+        }).then(response => response.text()).then(html => {
+            let $html = $(html);
+            newT0 = parseFloat($html.find("li:has(b:contains('T0'))")[1].innerText.split(" = ")[1]);
+            newN0 = parseFloat($html.find("li:has(b:contains('N0'))")[1].innerText.split(" = ")[1]);
+            newB0 = parseFloat($html.find("li:has(b:contains('B0'))")[1].innerText.split(" = ")[1]);
+            newL = parseFloat($html.find("li:has(b:contains('L'))")[1].innerText.split(" = ")[1]);
+            a = parseFloat($html.find("div:contains(' (A = ')")[0].innerText.split(" = ")[1]);
+            storageData();
         });
-        let html = await response.text();
-        let $html = $(html);
-        newT0 = parseFloat($html.find("li:has(b:contains('T0'))")[1].innerText.split(" = ")[1]);
-        newN0 = parseFloat($html.find("li:has(b:contains('N0'))")[1].innerText.split(" = ")[1]);
-        newB0 = parseFloat($html.find("li:has(b:contains('B0'))")[1].innerText.split(" = ")[1]);
-        newL = parseFloat($html.find("li:has(b:contains('L'))")[1].innerText.split(" = ")[1]);
-        a = parseFloat($html.find("div:contains(' (A = ')")[0].innerText.split(" = ")[1]);
     }
 
-    // 浏览器关闭A值就失效
-    document.cookie = "calcBonusA=" + a + "; path=/";
-    Toastify({
-        text: "时魔参数已更新",
-        duration: 3000,
-        close: true
-    }).showToast();
-    let T0 = GM_getValue(site.name + ".T0");
-    let N0 = GM_getValue(site.name + ".N0");
-    let B0 = GM_getValue(site.name + ".B0");
-    let L = GM_getValue(site.name + ".L");
-    if (T0 === newT0 && N0 === newN0 && B0 === newB0 && L === newL) {
+    function storageData() {
+        let activeSeed = getActiveSeed();
+        if (activeSeed !== -1) {
+            GM_setValue(site.name + ".activeSeed", activeSeed);
+        }
+        GM_setValue(site.name + ".paramStoreTime", Date.now());
+        GM_setValue(site.name + ".a", a);
+        Toastify({
+            text: "时魔参数已更新",
+            duration: 3000,
+            close: true
+        }).showToast();
+        let T0 = GM_getValue(site.name + ".T0");
+        let N0 = GM_getValue(site.name + ".N0");
+        let B0 = GM_getValue(site.name + ".B0");
+        let L = GM_getValue(site.name + ".L");
+        if (T0 === newT0 && N0 === newN0 && B0 === newB0 && L === newL) {
+            addDataCol();
+            return;
+        }
+        GM_setValue(site.name + ".T0", newT0);
+        GM_setValue(site.name + ".N0", newN0);
+        GM_setValue(site.name + ".B0", newB0);
+        GM_setValue(site.name + ".L", newL);
+        Toastify({
+            text: "魔力值参数已更新",
+            duration: 3000,
+            close: true
+        }).showToast();
         addDataCol();
-        return;
     }
-    GM_setValue(site.name + ".T0", newT0);
-    GM_setValue(site.name + ".N0", newN0);
-    GM_setValue(site.name + ".B0", newB0);
-    GM_setValue(site.name + ".L", newL);
-    Toastify({
-        text: "魔力值参数已更新",
-        duration: 3000,
-        close: true
-    }).showToast();
-    addDataCol();
 }
 
 function addDataCol() {
+
+    updateBonusParams();
 
     let siteName = site.name;
     let T0 = GM_getValue(siteName + ".T0");
     let N0 = GM_getValue(siteName + ".N0");
     let B0 = GM_getValue(siteName + ".B0");
     let L = GM_getValue(siteName + ".L");
-
-    if (!getCookie("calcBonusA") || !(T0 && N0 && B0 && L)) {
-        getParamsFromFetch();
-    }
 
     if (!(T0 && N0 && B0 && L)) {
         return;
@@ -407,7 +424,7 @@ function addDataCol() {
         return `<span>${ave}</span>`;
     }
 
-    let nowA = parseFloat(getCookie("calcBonusA"));
+    let nowA = GM_getValue(site.name + ".a");
     let hasNowA = !isNaN(nowA);
     let aHeadText = hasNowA ? "时魔" : "A";
     let aTitle = hasNowA ? "当前做种状态下每小时可以获得的魔力值" : "A值";
@@ -630,19 +647,14 @@ function addDataCol() {
 }
 
 function mTeamWaitPageLoadAndRun() {
-    let $ = jQuery
+    let $ = jQuery;
     let contentObserver = new MutationObserver((mutationsList, observer) => {
         let isMybonusPage = window.location.toString().indexOf("mybonus") != -1
-        if (isMybonusPage) {
-            if ($("li:has(b:contains('T0'))")[1]) {
-                observer.disconnect();
-                run();
-            }
-        } else {
-            if ($(seedTableSelector)[1]) {
-                observer.disconnect();
-                run();
-            }
+        let bonusPageReady = isMybonusPage && $("li:has(b:contains('T0'))").length > 1;
+        let torrentListPageReady = !isMybonusPage && $(seedTableSelector).length > 1;
+        if (bonusPageReady || torrentListPageReady) {
+            observer.disconnect();
+            run();
         }
     });
     let bodyObserver = new MutationObserver((mutationsList, observer) => {
