@@ -446,39 +446,14 @@ function addDataCol() {
         let calTHeadA = $("#calcTHeadA");
         let calTHeadAve = $("#calcTHeadAve");
         let addFlag = calTHeadA.length !== 0 && calTHeadAve.length !== 0;
+        let thead = $(seedTableHeaderSelector);
+        if (thead.length > 0) {
+            detectAndAddHead(thead, "th");
+        }
         $(seedTableSelector).each(function (row) {
             const $this = $(this);
-            if (row == 0) {
-                $this.children('td').each(function (col) {
-                    if ($(this).find('img.time').length) {
-                        i_T = col
-                    } else if ($(this).find('img.size').length) {
-                        i_S = col
-                    } else if ($(this).find('img.seeders').length) {
-                        i_N = col
-                    }
-                })
-                if (!i_T || !i_S || !i_N) {
-                    Toastify({
-                        text: "未能找到数据列",
-                        duration: 3000,
-                        close: true
-                    }).showToast();
-                    return
-                }
-                if (!addFlag) {
-                    $this.children("td:last").before('<td class="colhead" style="cursor: pointer;" ' +
-                        'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</td>',
-                        '<td class="colhead" style="cursor: pointer;" ' +
-                        'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</td>');
-                } else {
-                    $("#calcTHeadA").attr('title', aTitle);
-                    $("#calcTHeadAve").attr('title', aveTitle);
-                }
-                $('#calcTHeadA,#calcTHeadAve').off('click')
-                    .on('click', function () {
-                        handleSortTable(this.id);
-                    });
+            if (row === 0 && thead.length === 0) {
+                detectAndAddHead($this, "td");
             } else {
                 let {a, ave, s} = makeA($this, i_T, i_S, i_N);
                 let textAve = makeTextAve(ave);
@@ -504,6 +479,40 @@ function addDataCol() {
                 }
             }
         })
+
+        function detectAndAddHead(head, cellTag) {
+            head.children(cellTag).each(function (col) {
+                if ($(this).find('img.time').length) {
+                    i_T = col
+                } else if ($(this).find('img.size').length) {
+                    i_S = col
+                } else if ($(this).find('img.seeders').length) {
+                    i_N = col
+                }
+            })
+            if (!i_T || !i_S || !i_N) {
+                Toastify({
+                    text: "未能找到数据列",
+                    duration: 3000,
+                    close: true
+                }).showToast();
+                return
+            }
+            if (!addFlag) {
+                head.children(cellTag + ":last").before('<' + cellTag + ' class="colhead" style="cursor: pointer;" ' +
+                    'id="calcTHeadA" title="' + aTitle + '">' + aHeadText + '</' + cellTag + '>',
+                    '<' + cellTag + ' class="colhead" style="cursor: pointer;" ' +
+                    'id="calcTHeadAve" title="' + aveTitle + '">' + aveHeadText + '</' + cellTag + '>');
+            } else {
+                $("#calcTHeadA").attr('title', aTitle);
+                $("#calcTHeadAve").attr('title', aveTitle);
+            }
+            $('#calcTHeadA,#calcTHeadAve').off('click')
+                .on('click', function () {
+                    handleSortTable(this.id);
+                });
+        }
+
         sortTable();
     }
 
@@ -604,9 +613,12 @@ function addDataCol() {
         if (isMTeam) {
             rows = $tbody.children('tr').toArray();
         } else {
-            rows = $tbody.children('tr')
-                .not(':first-child')        // 排除表头行
-                .toArray();
+           let $rows = $tbody.children('tr');
+            if ($(seedTableHeaderSelector).length === 0) {
+                // 如果站点将表头也放在tbody中，则排除第一行
+                $rows = $rows.not(':first-child')
+            }
+            rows = $rows.toArray();
         }
         // 保存原始顺序
         if (needStore) {
@@ -669,6 +681,7 @@ function mTeamWaitPageLoadAndRun() {
 let host = window.location.host.match(/\b[^\.]+\.[^\.]+$/)[0]
 let isMTeam = window.location.toString().indexOf("m-team") != -1
 let mTeamUrl
+let seedTableHeaderSelector = '.torrents:last-of-type>thead>tr';
 let seedTableSelector = isMTeam ? 'div.ant-spin-container:not(.ant-spin-blur)>div.mt-4>table>tbody>tr' : '.torrents:last-of-type>tbody>tr'
 let isMybonusPage = window.location.toString().indexOf("mybonus") != -1
 if (isMTeam) {
